@@ -21,6 +21,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'uniz-user-service' });
 });
 
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'UniZ User Service API holds user profile data.', health: '/health' });
+});
+
 // Routes
 app.use('/', profileRoutes);
 
