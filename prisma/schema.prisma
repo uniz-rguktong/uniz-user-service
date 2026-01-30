@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -13,6 +14,7 @@ model StudentProfile {
   name             String   @default("")
   email            String   @default("")
   gender           String   @default("")
+  phone            String   @default("")
   fatherName       String   @default("")
   motherName       String   @default("")
   fatherOccupation String   @default("")

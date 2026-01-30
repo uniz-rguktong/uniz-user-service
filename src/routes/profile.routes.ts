@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getStudentProfile, updateStudentProfile, getAdminProfile, getFacultyProfile } from '../controllers/profile.controller';
+import { getStudentProfile, updateStudentProfile, getAdminProfile, getFacultyProfile, searchStudents } from '../controllers/profile.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 // Needs generic validation middleware similar to auth service
 // Creating a simple duplicate here for isolation as per rules
@@ -31,6 +31,7 @@ const StudentUpdateSchema = z.object({
 
 router.get('/student/me', authMiddleware, getStudentProfile);
 router.put('/student/update', authMiddleware, validateRequest(StudentUpdateSchema), updateStudentProfile);
+router.post('/student/search', authMiddleware, searchStudents);
 
 router.get('/faculty/me', authMiddleware, getFacultyProfile);
 router.get('/admin/me', authMiddleware, getAdminProfile);
