@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model StudentProfile {
+  id               String   @id // Synced from Auth
+  username         String   @unique
+  name             String   @default("")
+  email            String   @default("")
+  gender           String   @default("")
+  fatherName       String   @default("")
+  motherName       String   @default("")
+  fatherOccupation String   @default("")
+  motherOccupation String   @default("")
+  fatherEmail      String   @default("")
+  motherEmail      String   @default("")
+  fatherAddress    String   @default("")
+  motherAddress    String   @default("")
+  bloodGroup       String   @default("")
+  dateOfBirth      DateTime?
+  profileUrl       String   @default("")
+  
+  // Academic Info
+  year             String   @default("")
+  branch           String   @default("")
+  section          String   @default("")
+  roomno           String   @default("")
+  
+  // Status Flags
+  isPresentInCampus    Boolean @default(true)
+  isApplicationPending Boolean @default(false)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([branch, year])
+}
+
+model FacultyProfile {
+  id          String   @id // Synced from Auth
+  username    String   @unique
+  name        String
+  email       String   @unique
+  contact     String   @default("")
+  department  String
+  designation String
+  role        String   @default("teacher")
+  profileUrl  String   @default("")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([department])
+}
+
+model AdminProfile {
+  id        String   @id // Synced from Auth
+  username  String   @unique
+  email     String   @unique @default("")
+  role      String   @default("webmaster")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
