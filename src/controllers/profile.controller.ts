@@ -153,3 +153,31 @@ export const getAdminProfile = async (req: AuthenticatedRequest, res: Response) 
         return res.status(500).json({ code: ErrorCode.INTERNAL_SERVER_ERROR, message: 'Failed to fetch admin profile' });
     }
 };
+
+export const createFacultyProfile = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    const { username, name, email, department, designation } = req.body;
+
+    // Admin role check
+    const adminRoles = [UserRole.WEBMASTER, UserRole.DEAN, UserRole.DIRECTOR];
+    if (!user || !adminRoles.includes(user.role as UserRole)) {
+        return res.status(403).json({ code: ErrorCode.AUTH_FORBIDDEN, message: 'Access denied' });
+    }
+
+    try {
+        const profile = await prisma.facultyProfile.create({
+            data: {
+                id: username, // In transition username acts as ID
+                username,
+                name,
+                email,
+                department,
+                designation,
+                role: 'teacher'
+            }
+        });
+        return res.status(201).json({ success: true, faculty: mapFacultyProfile(profile) });
+    } catch (e) {
+        return res.status(500).json({ code: ErrorCode.INTERNAL_SERVER_ERROR, message: 'Internal Server Error' });
+    }
+}
