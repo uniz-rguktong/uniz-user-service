@@ -146,7 +146,22 @@ export const getFacultyProfile = async (req: AuthenticatedRequest, res: Response
 export const getAdminProfile = async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user;
     // Check if role is any admin role
-    const adminRoles = [UserRole.WEBMASTER, UserRole.DEAN, UserRole.DIRECTOR, UserRole.DSW, UserRole.WARDEN, UserRole.CARETAKER, UserRole.SECURITY];
+    const adminRoles = [
+        UserRole.WEBMASTER, 
+        UserRole.DEAN, 
+        UserRole.DIRECTOR, 
+        UserRole.SWO,
+        UserRole.WARDEN_MALE,
+        UserRole.WARDEN_FEMALE,
+        UserRole.CARETAKER_MALE,
+        UserRole.CARETAKER_FEMALE,
+        UserRole.SECURITY,
+        UserRole.LIBRARIAN,
+        // Legacy support
+        UserRole.DSW, 
+        UserRole.WARDEN, 
+        UserRole.CARETAKER
+    ];
     if (!user || !adminRoles.includes(user.role as UserRole)) {
         return res.status(403).json({ code: ErrorCode.AUTH_FORBIDDEN, message: 'Access denied' });
     }
