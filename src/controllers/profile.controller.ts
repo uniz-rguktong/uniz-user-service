@@ -1,8 +1,8 @@
 import { Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
-import { ErrorCode } from '@uniz-org/shared/dist/errors/error-codes';
-import { UserRole } from '@uniz-org/shared/dist/auth/roles.enum';
+import { ErrorCode } from '../shared/error-codes';
+import { UserRole } from '../shared/roles.enum';
 
 const prisma = new PrismaClient();
 

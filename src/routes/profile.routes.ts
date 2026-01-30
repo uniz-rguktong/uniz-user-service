@@ -5,7 +5,7 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 // Creating a simple duplicate here for isolation as per rules
 import { Request, Response, NextFunction } from 'express';
 import { z, ZodSchema } from 'zod';
-import { ErrorCode } from '@uniz-org/shared/dist/errors/error-codes';
+import { ErrorCode } from '../shared/error-codes';
 
 const validateRequest = (schema: ZodSchema<any>) => (req: Request, res: Response, next: NextFunction) => {
   try {
