@@ -72,9 +72,14 @@ export const updateStudentProfile = async (req: AuthenticatedRequest, res: Respo
   }
 
   try {
-    const updated = await prisma.studentProfile.update({
+    const updated = await prisma.studentProfile.upsert({
         where: { username: user.username },
-        data: updates
+        update: updates,
+        create: {
+            id: user.id || user.username, // Fallback to username if ID missing (shouldn't happen with valid token)
+            username: user.username,
+            ...updates
+        }
     });
     return res.json({ success: true, student: mapStudentProfile(updated) });
   } catch (e) {
