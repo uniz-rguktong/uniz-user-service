@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { ErrorCode } from '../shared/error-codes';
@@ -104,7 +104,7 @@ export const searchStudents = async (req: AuthenticatedRequest, res: Response) =
         if (year) where.year = year;
         if (gender) where.gender = gender;
 
-        const [students, total] = await prisma.$transaction([
+        const [students, total] = await Promise.all([
             prisma.studentProfile.findMany({
                 where,
                 skip,
@@ -201,3 +201,93 @@ export const createFacultyProfile = async (req: AuthenticatedRequest, res: Respo
         return res.status(500).json({ code: ErrorCode.INTERNAL_SERVER_ERROR, message: 'Internal Server Error' });
     }
 }
+export const updateStudentPresence = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    const { username, isPresent } = req.body;
+
+    const allowedRoles = [
+        UserRole.WEBMASTER, 
+        UserRole.DEAN, 
+        UserRole.DIRECTOR, 
+        UserRole.SWO,
+        UserRole.WARDEN_MALE,
+        UserRole.WARDEN_FEMALE,
+        UserRole.CARETAKER_MALE,
+        UserRole.CARETAKER_FEMALE,
+        UserRole.SECURITY
+    ];
+
+    if (!user || !allowedRoles.includes(user.role as UserRole)) {
+        return res.status(403).json({ code: ErrorCode.AUTH_FORBIDDEN, message: 'Access denied' });
+    }
+
+    try {
+        const updated = await prisma.studentProfile.update({
+            where: { username },
+            data: { isPresentInCampus: isPresent }
+        });
+        return res.json({ success: true, student: mapStudentProfile(updated) });
+    } catch (e) {
+        return res.status(500).json({ code: ErrorCode.INTERNAL_SERVER_ERROR, message: 'Failed to update presence' });
+    }
+};
+
+export const getBanners = async (req: Request, res: Response) => {
+    try {
+        const banners = await prisma.banner.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        return res.json({ success: true, banners });
+    } catch (e) {
+        return res.status(500).json({ success: false, message: 'Failed to fetch banners' });
+    }
+};
+
+export const createBanner = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    if (!user || user.role !== UserRole.WEBMASTER) {
+        return res.status(403).json({ success: false, message: 'Only webmaster can add banners' });
+    }
+
+    const { title, text, imageUrl } = req.body;
+    try {
+        const banner = await prisma.banner.create({
+            data: { title, text, imageUrl, isPublished: true }
+        });
+        return res.json({ success: true, banner });
+    } catch (e) {
+        return res.status(500).json({ success: false, message: 'Failed to create banner' });
+    }
+};
+
+export const deleteBanner = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    if (!user || user.role !== UserRole.WEBMASTER) {
+        return res.status(403).json({ success: false, message: 'Denied' });
+    }
+    const { id } = req.params;
+    try {
+        await prisma.banner.delete({ where: { id } });
+        return res.json({ success: true });
+    } catch (e) {
+        return res.status(500).json({ success: false });
+    }
+};
+
+export const publishBanner = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    if (!user || user.role !== UserRole.WEBMASTER) {
+        return res.status(403).json({ success: false });
+    }
+    const { id } = req.params;
+    const { publish } = req.body;
+    try {
+        await prisma.banner.update({
+            where: { id },
+            data: { isPublished: publish }
+        });
+        return res.json({ success: true });
+    } catch (e) {
+        return res.status(500).json({ success: false });
+    }
+};

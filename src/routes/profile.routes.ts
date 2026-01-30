@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getStudentProfile, updateStudentProfile, getAdminProfile, getFacultyProfile, searchStudents, createFacultyProfile } from '../controllers/profile.controller';
+import { getStudentProfile, updateStudentProfile, getAdminProfile, getFacultyProfile, searchStudents, createFacultyProfile, updateStudentPresence, getBanners, createBanner, deleteBanner, publishBanner } from '../controllers/profile.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 // Needs generic validation middleware similar to auth service
 // Creating a simple duplicate here for isolation as per rules
@@ -44,6 +44,14 @@ router.post('/student/search', authMiddleware, searchStudents);
 
 router.get('/faculty/me', authMiddleware, getFacultyProfile);
 router.post('/faculty/create', authMiddleware, validateRequest(FacultyCreateSchema), createFacultyProfile);
+router.put('/student/status', authMiddleware, updateStudentPresence);
+
+// Banner Routes
+router.get('/admin/banners', authMiddleware, getBanners);
+router.post('/admin/banners', authMiddleware, createBanner);
+router.delete('/admin/banners/:id', authMiddleware, deleteBanner);
+router.post('/admin/banners/:id/publish', authMiddleware, publishBanner);
+
 router.get('/admin/me', authMiddleware, getAdminProfile);
 
 
