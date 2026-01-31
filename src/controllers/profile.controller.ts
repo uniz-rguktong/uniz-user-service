@@ -105,6 +105,9 @@ export const searchStudents = async (req: AuthenticatedRequest, res: Response) =
         if (branch) where.branch = branch;
         if (year) where.year = year;
         if (gender) where.gender = gender;
+        if (req.body.isPresentInCampus !== undefined) {
+            where.isPresentInCampus = req.body.isPresentInCampus;
+        }
 
         // Cache search results for 1 minute
         res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
@@ -236,11 +239,25 @@ export const updateStudentPresence = async (req: AuthenticatedRequest, res: Resp
     }
 };
 
+// Fetches all banners (including unpublished) - Admin Only
 export const getBanners = async (req: Request, res: Response) => {
     try {
-        // Banners are static, cache for 5 minutes
+        const banners = await prisma.banner.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        return res.json({ success: true, banners });
+    } catch (e) {
+        return res.status(500).json({ success: false, message: 'Failed to fetch banners' });
+    }
+};
+
+// Fetches ONLY published banners - Student/Public
+export const getPublicBanners = async (req: Request, res: Response) => {
+    try {
+        // Cache for 5 mins
         res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1200');
         const banners = await prisma.banner.findMany({
+            where: { isPublished: true },
             orderBy: { createdAt: 'desc' }
         });
         return res.json({ success: true, banners });
