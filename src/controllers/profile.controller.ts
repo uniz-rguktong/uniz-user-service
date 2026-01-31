@@ -53,6 +53,8 @@ export const getStudentProfile = async (req: AuthenticatedRequest, res: Response
   }
 
   try {
+    // Cache student profile at the edge for 1 minute
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=600');
     const profile = await prisma.studentProfile.findUnique({ where: { username: user.username } });
     if (!profile) {
         return res.status(404).json({ code: ErrorCode.RESOURCE_NOT_FOUND, message: 'Profile not found' });
@@ -104,6 +106,8 @@ export const searchStudents = async (req: AuthenticatedRequest, res: Response) =
         if (year) where.year = year;
         if (gender) where.gender = gender;
 
+        // Cache search results for 1 minute
+        res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
         const [students, total] = await Promise.all([
             prisma.studentProfile.findMany({
                 where,
@@ -234,6 +238,8 @@ export const updateStudentPresence = async (req: AuthenticatedRequest, res: Resp
 
 export const getBanners = async (req: Request, res: Response) => {
     try {
+        // Banners are static, cache for 5 minutes
+        res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1200');
         const banners = await prisma.banner.findMany({
             orderBy: { createdAt: 'desc' }
         });
