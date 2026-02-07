@@ -8,6 +8,34 @@ import { redis } from "../utils/redis.util";
 
 const prisma = new PrismaClient();
 
+const sendMail = async (type: string, to: string, data: any) => {
+  try {
+    const rawGateway = (
+      process.env.GATEWAY_URL || "http://localhost:3000/api/v1"
+    ).trim();
+    const rawMailUrl = process.env.MAIL_SERVICE_URL;
+    const MAIL_SERVICE = rawMailUrl
+      ? rawMailUrl.trim().replace(/\/health$/, "")
+      : `${rawGateway}/mail`;
+
+    const SECRET = (process.env.INTERNAL_SECRET || "uniz-core").trim();
+
+    await axios.post(
+      `${MAIL_SERVICE}/send`,
+      {
+        type,
+        to,
+        data,
+      },
+      {
+        headers: { "x-internal-secret": SECRET },
+      },
+    );
+  } catch (e: any) {
+    console.error(`Failed to send mail (${type}) to ${to}:`, e.message);
+  }
+};
+
 const mapStudentProfile = (profile: any) => ({
   _id: profile.id,
   username: profile.username,
@@ -95,8 +123,9 @@ export const getStudentProfile = async (
     // 3. Parallel Enrichment
     const token = req.headers.authorization;
     if (token && req.params.username) {
-      const GATEWAY_URL =
-        process.env.GATEWAY_URL || "http://localhost:3000/api/v1";
+      const GATEWAY_URL = (
+        process.env.GATEWAY_URL || "http://localhost:3000/api/v1"
+      ).trim();
       try {
         const [gradesRes, attendanceRes] = await Promise.all([
           axios
@@ -166,6 +195,16 @@ export const updateStudentProfile = async (
     // Invalidate profile cache to prevent stale data
     await redis.del(`profile:v2:${user.username}`);
 
+    // Notify student
+    sendMail(
+      "profile_update",
+      updated.email || `${user.username}@rguktong.ac.in`,
+      {
+        username: updated.name || user.username,
+        updatedFields: Object.keys(updates),
+      },
+    );
+
     return res.json({ success: true, student: mapStudentProfile(updated) });
   } catch (e) {
     console.error("Update Profile Error:", e);
@@ -199,6 +238,12 @@ export const adminUpdateStudentProfile = async (
 
     // Invalidate profile cache to prevent stale data
     await redis.del(`profile:v2:${username}`);
+
+    // Notify student
+    sendMail("profile_update", updated.email || `${username}@rguktong.ac.in`, {
+      username: updated.name || username,
+      updatedFields: Object.keys(updates),
+    });
 
     return res.json({ success: true, student: mapStudentProfile(updated) });
   } catch (e: any) {
