@@ -7,13 +7,13 @@ const SECRET = process.env.JWT_SECURITY_KEY;
 if (!SECRET && process.env.NODE_ENV === "production") {
   throw new Error("JWT_SECURITY_KEY is required in production");
 }
-const JWT_SECRET: string = SECRET || "default_secret_unsafe";
+const JWT_SECRET: string = (SECRET || "default_secret_unsafe").trim();
 
 const I_SECRET = process.env.INTERNAL_SECRET;
 if (!I_SECRET && process.env.NODE_ENV === "production") {
   throw new Error("INTERNAL_SECRET is required in production");
 }
-const INTERNAL_SECRET = I_SECRET || "uniz-core";
+const INTERNAL_SECRET = (I_SECRET || "uniz-core").trim();
 
 export interface AuthenticatedRequest extends Request {
   user?: JwtPayload;
