@@ -84,12 +84,10 @@ export const getStudentProfile = async (
       where: { username: targetUsername },
     });
     if (!profile) {
-      return res
-        .status(404)
-        .json({
-          code: ErrorCode.RESOURCE_NOT_FOUND,
-          message: "Profile not found",
-        });
+      return res.status(404).json({
+        code: ErrorCode.RESOURCE_NOT_FOUND,
+        message: "Profile not found",
+      });
     }
 
     const mapped: any = mapStudentProfile(profile);
@@ -134,12 +132,10 @@ export const getStudentProfile = async (
     return res.json({ success: true, student: mapped, source: "db" });
   } catch (e) {
     console.error("Profile fetch error:", e);
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to fetch profile",
-      });
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to fetch profile",
+    });
   }
 };
 
@@ -166,15 +162,17 @@ export const updateStudentProfile = async (
         ...updates,
       },
     });
+
+    // Invalidate profile cache to prevent stale data
+    await redis.del(`profile:v2:${user.username}`);
+
     return res.json({ success: true, student: mapStudentProfile(updated) });
   } catch (e) {
     console.error("Update Profile Error:", e);
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to update profile",
-      });
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to update profile",
+    });
   }
 };
 
@@ -198,19 +196,21 @@ export const adminUpdateStudentProfile = async (
       where: { username },
       data: updates,
     });
+
+    // Invalidate profile cache to prevent stale data
+    await redis.del(`profile:v2:${username}`);
+
     return res.json({ success: true, student: mapStudentProfile(updated) });
   } catch (e: any) {
     console.error(
       `[ERROR] adminUpdateStudentProfile failed for ${username}:`,
       e.message || e,
     );
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to update student profile",
-        details: e.message,
-      });
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to update student profile",
+      details: e.message,
+    });
   }
 };
 
@@ -221,12 +221,10 @@ export const searchStudents = async (
   const user = req.user;
   // Restrict search to Staff/Admin roles only
   if (!user || user.role === UserRole.STUDENT) {
-    return res
-      .status(403)
-      .json({
-        code: ErrorCode.AUTH_FORBIDDEN,
-        message: "Students cannot search other students",
-      });
+    return res.status(403).json({
+      code: ErrorCode.AUTH_FORBIDDEN,
+      message: "Students cannot search other students",
+    });
   }
 
   const { username, branch, year, gender, page = 1, limit = 10 } = req.body;
@@ -270,12 +268,10 @@ export const searchStudents = async (
       },
     });
   } catch (e) {
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Search failed",
-      });
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Search failed",
+    });
   }
 };
 
@@ -295,20 +291,16 @@ export const getFacultyProfile = async (
       where: { username: user.username },
     });
     if (!profile)
-      return res
-        .status(404)
-        .json({
-          code: ErrorCode.RESOURCE_NOT_FOUND,
-          message: "Profile not found",
-        });
+      return res.status(404).json({
+        code: ErrorCode.RESOURCE_NOT_FOUND,
+        message: "Profile not found",
+      });
     return res.json({ success: true, faculty: mapFacultyProfile(profile) });
   } catch (e) {
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to fetch faculty profile",
-      });
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to fetch faculty profile",
+    });
   }
 };
 
@@ -346,12 +338,10 @@ export const getAdminProfile = async (
     });
     return res.json({ success: true, data: profile });
   } catch (e) {
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to fetch admin profile",
-      });
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to fetch admin profile",
+    });
   }
 };
 
@@ -387,19 +377,15 @@ export const createFacultyProfile = async (
       .json({ success: true, faculty: mapFacultyProfile(profile) });
   } catch (e: any) {
     if (e.code === "P2002") {
-      return res
-        .status(409)
-        .json({
-          code: ErrorCode.RESOURCE_ALREADY_EXISTS,
-          message: "This faculty profile already exists.",
-        });
-    }
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Could not create profile. Please try again.",
+      return res.status(409).json({
+        code: ErrorCode.RESOURCE_ALREADY_EXISTS,
+        message: "This faculty profile already exists.",
       });
+    }
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Could not create profile. Please try again.",
+    });
   }
 };
 export const updateStudentPresence = async (
@@ -461,12 +447,10 @@ export const updateStudentPresence = async (
     return res.json({ success: true, student: mapStudentProfile(updated) });
   } catch (e) {
     console.error("Update Presence Error:", e);
-    return res
-      .status(500)
-      .json({
-        code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Failed to update presence",
-      });
+    return res.status(500).json({
+      code: ErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to update presence",
+    });
   }
 };
 
