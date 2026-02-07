@@ -96,10 +96,7 @@ export const getStudentProfile = async (
     const token = req.headers.authorization;
     if (token && req.params.username) {
       const GATEWAY_URL =
-        process.env.GATEWAY_URL ||
-        (process.env.NODE_ENV === "production"
-          ? "https://uniz-gateway.vercel.app/api/v1"
-          : "http://localhost:3000/api/v1");
+        process.env.GATEWAY_URL || "http://localhost:3000/api/v1";
       try {
         const [gradesRes, attendanceRes] = await Promise.all([
           axios
