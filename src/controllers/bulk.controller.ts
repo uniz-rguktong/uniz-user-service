@@ -8,7 +8,7 @@ import { redis } from "../utils/redis.util";
 
 const prisma = new PrismaClient();
 const AUTH_SERVICE_URL =
-  process.env.AUTH_SERVICE_URL || "https://uniz-auth.vercel.app";
+  process.env.AUTH_SERVICE_URL || "http://localhost:3001";
 
 // Helper for Excel generation
 const generateExcel = (
