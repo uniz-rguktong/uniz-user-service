@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from "../middlewares/auth.middleware";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { UserRole } from "../shared/roles.enum";
+import { redis } from "../utils/redis.util";
 
 const prisma = new PrismaClient();
 const AUTH_SERVICE_URL =
@@ -57,6 +58,27 @@ export const getStudentsTemplate = async (
   return generateExcel(headers, "Student_Upload_Template", res);
 };
 
+export const getUploadProgress = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
+  const user = req.user;
+  if (!user)
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  const key = `student:upload:progress:${user.username}`;
+  const data = await redis.get(key);
+
+  if (!data) {
+    return res.json({
+      status: "idle",
+      message: "No active or recent student upload found.",
+    });
+  }
+
+  return res.json(JSON.parse(data));
+};
+
 export const uploadStudents = async (req: any, res: Response) => {
   const user = req.user;
   if (!user || user.role === UserRole.STUDENT) {
@@ -72,95 +94,153 @@ export const uploadStudents = async (req: any, res: Response) => {
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+    const total = rows.length;
 
-    let successCount = 0;
-    let authCreatedCount = 0;
-    const errors: any[] = [];
+    if (total === 0)
+      return res.status(400).json({ success: false, message: "Empty file" });
 
-    console.log(`Starting student upload: ${rows.length} rows`);
+    // Initialize progress in Redis
+    await redis.setex(
+      `student:upload:progress:${user.username}`,
+      600,
+      JSON.stringify({
+        status: "processing",
+        processed: 0,
+        total,
+        success: 0,
+        fail: 0,
+        percent: 0,
+        etaSeconds: 0,
+      }),
+    );
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      // Normalize keys
-      const getVal = (keys: string[]) => {
-        const found = Object.keys(row).find((k) =>
-          keys.includes(k.trim().toLowerCase()),
+    const startTime = Date.now();
+
+    // Background Execution Handler
+    const runIngestion = async () => {
+      let successCount = 0;
+      let failCount = 0;
+      const errors: any[] = [];
+
+      const CHUNK_SIZE = 5;
+      for (let i = 0; i < total; i += CHUNK_SIZE) {
+        const chunk = rows.slice(i, i + CHUNK_SIZE);
+
+        await Promise.all(
+          chunk.map(async (row, indexInChunk) => {
+            const globalIndex = i + indexInChunk;
+            const getVal = (keys: string[]) => {
+              const found = Object.keys(row).find((k) =>
+                keys.includes(k.trim().toLowerCase()),
+              );
+              return found ? String(row[found]).trim() : "";
+            };
+
+            const id = getVal([
+              "student id",
+              "studentid",
+              "id",
+              "username",
+            ]).toUpperCase();
+            const name = getVal(["name", "student name"]);
+            const email = getVal(["email", "mail"]);
+            const gender = getVal(["gender", "sex"]);
+            const branch = getVal(["branch", "department"]).toUpperCase();
+            const year = getVal(["year", "class"]).toUpperCase();
+            const section = getVal(["section", "sec"]).toUpperCase();
+            const phone = getVal(["phone", "mobile"]);
+
+            if (!id) {
+              failCount++;
+              errors.push({
+                row: globalIndex + 2,
+                error: "Missing Student ID",
+              });
+              return;
+            }
+
+            try {
+              // 1. Upsert Profile
+              await prisma.studentProfile.upsert({
+                where: { username: id },
+                update: {
+                  name,
+                  email,
+                  gender,
+                  branch,
+                  year,
+                  section,
+                  phone,
+                  updatedAt: new Date(),
+                },
+                create: {
+                  id,
+                  username: id,
+                  name,
+                  email,
+                  gender,
+                  branch,
+                  year,
+                  section,
+                  phone,
+                },
+              });
+              successCount++;
+
+              // 2. Create Auth Credential (if needed)
+              try {
+                await axios.post(`${AUTH_SERVICE_URL}/api/v1/auth/signup`, {
+                  username: id,
+                  password: id, // Default password is ID
+                  role: "student",
+                  email: email,
+                });
+              } catch (authErr: any) {
+                if (authErr.response && authErr.response.status === 409) {
+                  // already exists, skip
+                } else {
+                  console.warn(
+                    `Failed to create auth for ${id}: ${authErr.message}`,
+                  );
+                }
+              }
+            } catch (dbErr: any) {
+              failCount++;
+              errors.push({ row: globalIndex + 2, id, error: dbErr.message });
+            }
+          }),
         );
-        return found ? String(row[found]).trim() : "";
-      };
 
-      const id = getVal(["student id", "studentid", "id", "username"]);
-      const name = getVal(["name", "student name"]);
-      const email = getVal(["email", "mail"]);
-      const gender = getVal(["gender", "sex"]);
-      const branch = getVal(["branch", "department"]);
-      const year = getVal(["year", "class"]);
-      const section = getVal(["section", "sec"]);
-      const phone = getVal(["phone", "mobile"]);
+        const processedCount = Math.min(i + CHUNK_SIZE, total);
+        const elapsed = Math.max(Date.now() - startTime, 1);
+        const avgTimePerItem = elapsed / processedCount;
+        const remaining = total - processedCount;
+        const etaSeconds = Math.ceil((avgTimePerItem * remaining) / 1000);
 
-      if (!id) {
-        errors.push({ row: i + 2, error: "Missing Student ID" });
-        continue;
+        await redis.setex(
+          `student:upload:progress:${user.username}`,
+          600,
+          JSON.stringify({
+            status: processedCount >= total ? "done" : "processing",
+            processed: processedCount,
+            total,
+            success: successCount,
+            fail: failCount,
+            percent: Math.round((processedCount / total) * 100),
+            etaSeconds: processedCount >= total ? 0 : Math.max(etaSeconds, 1),
+            errors: errors.slice(-20),
+          }),
+        );
       }
+    };
 
-      // 1. Upsert Profile
-      try {
-        await prisma.studentProfile.upsert({
-          where: { username: id },
-          update: {
-            name,
-            email,
-            gender,
-            branch,
-            year,
-            section,
-            phone,
-            updatedAt: new Date(),
-          },
-          create: {
-            id,
-            username: id,
-            name,
-            email,
-            gender,
-            branch,
-            year,
-            section,
-            phone,
-          },
-        });
-        successCount++;
+    runIngestion();
 
-        // 2. Create Auth Credential (if needed)
-        // We call the Auth Service generic signup.
-        // Default Password = ID (or a secure default)
-        try {
-          await axios.post(`${AUTH_SERVICE_URL}/api/v1/auth/signup`, {
-            username: id,
-            password: id, // Default password is ID
-            role: "student",
-            email: email,
-          });
-          authCreatedCount++;
-        } catch (authErr: any) {
-          // Ignore "Username already exists" (409)
-          if (authErr.response && authErr.response.status === 409) {
-            // already exists, all good
-          } else {
-            console.warn(`Failed to create auth for ${id}: ${authErr.message}`);
-          }
-        }
-      } catch (dbErr: any) {
-        errors.push({ row: i + 2, id, error: dbErr.message });
-      }
-    }
-
-    return res.json({
+    return res.status(202).json({
       success: true,
-      total: rows.length,
-      profilesCreated: successCount,
-      authCredentialsCreated: authCreatedCount,
-      errors,
+      message: "Student bulk upload started in background.",
+      total,
+      monitor_url: "/api/v1/profile/admin/student/upload/progress",
     });
   } catch (e: any) {
     console.error("Upload Error:", e);

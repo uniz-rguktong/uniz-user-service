@@ -1,27 +1,46 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { getStudentProfile, updateStudentProfile, adminUpdateStudentProfile, getAdminProfile, getFacultyProfile, searchStudents, createFacultyProfile, updateStudentPresence, getBanners, getPublicBanners, createBanner, deleteBanner, publishBanner } from '../controllers/profile.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import { z, ZodSchema } from 'zod';
-import { ErrorCode } from '../shared/error-codes';
+import { Router, Request, Response, NextFunction } from "express";
+import {
+  getStudentProfile,
+  updateStudentProfile,
+  adminUpdateStudentProfile,
+  getAdminProfile,
+  getFacultyProfile,
+  searchStudents,
+  createFacultyProfile,
+  updateStudentPresence,
+  getBanners,
+  getPublicBanners,
+  createBanner,
+  deleteBanner,
+  publishBanner,
+} from "../controllers/profile.controller";
+import { authMiddleware } from "../middlewares/auth.middleware";
+import { z, ZodSchema } from "zod";
+import { ErrorCode } from "../shared/error-codes";
 
-const validateRequest = (schema: ZodSchema<any>) => (req: Request, res: Response, next: NextFunction) => {
-  try {
-    req.body = schema.parse(req.body);
-    next();
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ code: ErrorCode.VALIDATION_ERROR, errors: error.errors });
+const validateRequest =
+  (schema: ZodSchema<any>) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      req.body = schema.parse(req.body);
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res
+          .status(400)
+          .json({ code: ErrorCode.VALIDATION_ERROR, errors: error.errors });
+      }
+      next(error);
     }
-    next(error);
-  }
-};
+  };
 
 const router = Router();
 
-const StudentBaseSchema = z.object({
+const StudentBaseSchema = z
+  .object({
     name: z.string().min(2).max(100).optional(),
     email: z.string().email().optional(),
-    gender: z.enum(['M', 'F', 'Other']).optional(),
+    gender: z.enum(["M", "F", "Other"]).optional(),
     phone: z.string().min(10).max(15).optional(),
     phoneNumber: z.string().min(10).max(15).optional(),
     phone_number: z.string().min(10).max(15).optional(),
@@ -55,70 +74,144 @@ const StudentBaseSchema = z.object({
     isPresentInCampus: z.boolean().optional(),
     is_in_campus: z.boolean().optional(),
     isApplicationPending: z.boolean().optional(),
-    has_pending_requests: z.boolean().optional()
-}).transform((data: any) => {
+    has_pending_requests: z.boolean().optional(),
+  })
+  .transform((data: any) => {
     const mapped: any = { ...data };
-    
+
     // Map aliases to canonical names
-    if (data.phoneNumber) { mapped.phone = data.phoneNumber; delete mapped.phoneNumber; }
-    if (data.phone_number) { mapped.phone = data.phone_number; delete mapped.phone_number; }
-    
-    if (data.blood_group) { mapped.bloodGroup = data.blood_group; delete mapped.blood_group; }
-    if (data.date_of_birth) { mapped.dateOfBirth = data.date_of_birth; delete mapped.date_of_birth; }
-    if (data.profile_url) { mapped.profileUrl = data.profile_url; delete mapped.profile_url; }
-    
-    if (data.father_name) { mapped.fatherName = data.father_name; delete mapped.father_name; }
-    if (data.mother_name) { mapped.motherName = data.mother_name; delete mapped.mother_name; }
-    if (data.father_occupation) { mapped.fatherOccupation = data.father_occupation; delete mapped.father_occupation; }
-    if (data.mother_occupation) { mapped.motherOccupation = data.mother_occupation; delete mapped.mother_occupation; }
-    if (data.father_email) { mapped.fatherEmail = data.father_email; delete mapped.father_email; }
-    if (data.mother_email) { mapped.motherEmail = data.mother_email; delete mapped.mother_email; }
-    if (data.father_address) { mapped.fatherAddress = data.father_address; delete mapped.father_address; }
-    if (data.mother_address) { mapped.motherAddress = data.mother_address; delete mapped.mother_address; }
-    
-    if (data.room_number) { mapped.roomno = data.room_number; delete mapped.room_number; }
-    if (data.is_in_campus !== undefined) { mapped.isPresentInCampus = data.is_in_campus; delete mapped.is_in_campus; }
-    if (data.has_pending_requests !== undefined) { mapped.isApplicationPending = data.has_pending_requests; delete mapped.has_pending_requests; }
-    
+    if (data.phoneNumber) {
+      mapped.phone = data.phoneNumber;
+      delete mapped.phoneNumber;
+    }
+    if (data.phone_number) {
+      mapped.phone = data.phone_number;
+      delete mapped.phone_number;
+    }
+
+    if (data.blood_group) {
+      mapped.bloodGroup = data.blood_group;
+      delete mapped.blood_group;
+    }
+    if (data.date_of_birth) {
+      mapped.dateOfBirth = data.date_of_birth;
+      delete mapped.date_of_birth;
+    }
+    if (data.profile_url) {
+      mapped.profileUrl = data.profile_url;
+      delete mapped.profile_url;
+    }
+
+    if (data.father_name) {
+      mapped.fatherName = data.father_name;
+      delete mapped.father_name;
+    }
+    if (data.mother_name) {
+      mapped.motherName = data.mother_name;
+      delete mapped.mother_name;
+    }
+    if (data.father_occupation) {
+      mapped.fatherOccupation = data.father_occupation;
+      delete mapped.father_occupation;
+    }
+    if (data.mother_occupation) {
+      mapped.motherOccupation = data.mother_occupation;
+      delete mapped.mother_occupation;
+    }
+    if (data.father_email) {
+      mapped.fatherEmail = data.father_email;
+      delete mapped.father_email;
+    }
+    if (data.mother_email) {
+      mapped.motherEmail = data.mother_email;
+      delete mapped.mother_email;
+    }
+    if (data.father_address) {
+      mapped.fatherAddress = data.father_address;
+      delete mapped.father_address;
+    }
+    if (data.mother_address) {
+      mapped.motherAddress = data.mother_address;
+      delete mapped.mother_address;
+    }
+
+    if (data.room_number) {
+      mapped.roomno = data.room_number;
+      delete mapped.room_number;
+    }
+    if (data.is_in_campus !== undefined) {
+      mapped.isPresentInCampus = data.is_in_campus;
+      delete mapped.is_in_campus;
+    }
+    if (data.has_pending_requests !== undefined) {
+      mapped.isApplicationPending = data.has_pending_requests;
+      delete mapped.has_pending_requests;
+    }
+
     return mapped;
-});
+  });
 
 const StudentUpdateSchema = StudentBaseSchema;
 const AdminUpdateStudentSchema = StudentBaseSchema;
 
 const FacultyCreateSchema = z.object({
-    username: z.string(),
-    name: z.string(),
-    email: z.string().email(),
-    department: z.string(),
-    designation: z.string()
+  username: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+  department: z.string(),
+  designation: z.string(),
 });
 
-router.get('/student/me', authMiddleware, getStudentProfile);
-router.get('/admin/student/:username', authMiddleware, getStudentProfile);
-router.put('/student/update', authMiddleware, validateRequest(StudentUpdateSchema), updateStudentProfile);
-router.put('/admin/student/:username', authMiddleware, validateRequest(AdminUpdateStudentSchema), adminUpdateStudentProfile);
-router.post('/student/search', authMiddleware, searchStudents);
+router.get("/student/me", authMiddleware, getStudentProfile);
+router.get("/admin/student/:username", authMiddleware, getStudentProfile);
+router.put(
+  "/student/update",
+  authMiddleware,
+  validateRequest(StudentUpdateSchema),
+  updateStudentProfile,
+);
+router.put(
+  "/admin/student/:username",
+  authMiddleware,
+  validateRequest(AdminUpdateStudentSchema),
+  adminUpdateStudentProfile,
+);
+router.post("/student/search", authMiddleware, searchStudents);
 
-router.get('/faculty/me', authMiddleware, getFacultyProfile);
-router.post('/faculty/create', authMiddleware, validateRequest(FacultyCreateSchema), createFacultyProfile);
-router.put('/student/status', authMiddleware, updateStudentPresence);
+router.get("/faculty/me", authMiddleware, getFacultyProfile);
+router.post(
+  "/faculty/create",
+  authMiddleware,
+  validateRequest(FacultyCreateSchema),
+  createFacultyProfile,
+);
+router.put("/student/status", authMiddleware, updateStudentPresence);
 
 // Banner Routes
-router.get('/student/banners', authMiddleware, getPublicBanners);
-router.get('/admin/banners', authMiddleware, getBanners);
-router.post('/admin/banners', authMiddleware, createBanner);
-router.delete('/admin/banners/:id', authMiddleware, deleteBanner);
-router.post('/admin/banners/:id/publish', authMiddleware, publishBanner);
+router.get("/student/banners", authMiddleware, getPublicBanners);
+router.get("/admin/banners", authMiddleware, getBanners);
+router.post("/admin/banners", authMiddleware, createBanner);
+router.delete("/admin/banners/:id", authMiddleware, deleteBanner);
+router.post("/admin/banners/:id/publish", authMiddleware, publishBanner);
 
-router.get('/admin/me', authMiddleware, getAdminProfile);
+router.get("/admin/me", authMiddleware, getAdminProfile);
 
 // Bulk Imports
-import { getStudentsTemplate, uploadStudents } from '../controllers/bulk.controller';
-import multer from 'multer';
+import {
+  getStudentsTemplate,
+  uploadStudents,
+  getUploadProgress,
+} from "../controllers/bulk.controller";
+import multer from "multer";
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.get('/admin/student/template', authMiddleware, getStudentsTemplate);
-router.post('/admin/student/upload', authMiddleware, upload.single('file'), uploadStudents);
+router.get("/admin/student/template", authMiddleware, getStudentsTemplate);
+router.post(
+  "/admin/student/upload",
+  authMiddleware,
+  upload.single("file"),
+  uploadStudents,
+);
+router.get("/admin/student/upload/progress", authMiddleware, getUploadProgress);
 
 export default router;
