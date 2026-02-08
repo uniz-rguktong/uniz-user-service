@@ -14,9 +14,19 @@ import {
   deleteBanner,
   publishBanner,
 } from "../controllers/profile.controller";
+
+import multer from "multer";
+
+const upload = multer({ storage: multer.memoryStorage() });
+
 import { authMiddleware } from "../middlewares/auth.middleware";
 import { z, ZodSchema } from "zod";
 import { ErrorCode } from "../shared/error-codes";
+import {
+  getStudentsTemplate,
+  getUploadProgress,
+  uploadStudents,
+} from "../controllers/bulk.controller";
 
 const validateRequest =
   (schema: ZodSchema<any>) =>
@@ -163,6 +173,17 @@ const FacultyCreateSchema = z.object({
 });
 
 router.get("/student/me", authMiddleware, getStudentProfile);
+
+// Bulk Import Routes (Must be before generic :username route)
+router.get("/admin/student/template", authMiddleware, getStudentsTemplate);
+router.post(
+  "/admin/student/upload",
+  authMiddleware,
+  upload.single("file"),
+  uploadStudents,
+);
+router.get("/admin/student/upload/progress", authMiddleware, getUploadProgress);
+
 router.get("/admin/student/:username", authMiddleware, getStudentProfile);
 router.put(
   "/student/update",
@@ -195,23 +216,5 @@ router.delete("/admin/banners/:id", authMiddleware, deleteBanner);
 router.post("/admin/banners/:id/publish", authMiddleware, publishBanner);
 
 router.get("/admin/me", authMiddleware, getAdminProfile);
-
-// Bulk Imports
-import {
-  getStudentsTemplate,
-  uploadStudents,
-  getUploadProgress,
-} from "../controllers/bulk.controller";
-import multer from "multer";
-const upload = multer({ storage: multer.memoryStorage() });
-
-router.get("/admin/student/template", authMiddleware, getStudentsTemplate);
-router.post(
-  "/admin/student/upload",
-  authMiddleware,
-  upload.single("file"),
-  uploadStudents,
-);
-router.get("/admin/student/upload/progress", authMiddleware, getUploadProgress);
 
 export default router;
